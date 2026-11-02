@@ -132,6 +132,27 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 | `esm-fto-cli users list [--search T]` | Users, roles, languages |
 | `esm-fto-cli users assign\|unassign <email> <lang>` | Translator language assignment |
 
+### Every tool by name (same tools as the FTO MCP)
+The app declares each operation once as a tool and publishes them at
+`/api/v1/tools`, filtered by your role. These commands read that list, so a
+tool added to the app is usable here at once, even without a dedicated command:
+
+| Command | Description |
+|---|---|
+| `esm-fto-cli tools list [--category C] [--access read\|write]` | Tools your role can use (`write!` = overwrites or publishes) |
+| `esm-fto-cli tools describe <name>` | What it does, its inputs, types, defaults |
+| `esm-fto-cli tools run <name> key=value ... [-i json\|@file\|-] [--file key=path] [--raw field [-o file]]` | Run it; values are JSON (`limit=5`, `force=true`) unless the input is text |
+
+```bash
+esm-fto-cli tools run list_videos language=fr languageStatus=PENDING limit=5
+esm-fto-cli tools run get_subtitles ref=q1.c2.s3 lang=fr --raw content -o fr.srt
+esm-fto-cli tools run save_subtitles ref=q1.c2.s3 lang=fr --file content=fr.srt
+```
+
+Prefer the dedicated commands above when one exists (`--wait`, files,
+tables); use `tools` for anything else. Confirm with the user before a
+`write!` tool.
+
 ### Escape hatch
 `esm-fto-cli api <GET|POST|PUT|PATCH|DELETE> <path> [-d json]` calls any `/api/v1` endpoint,
 e.g. `esm-fto-cli api GET /videos/q1.c2.s3/languages/fr`.

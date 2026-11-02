@@ -40,6 +40,8 @@ async function request(method: Method, path: string, opts: RequestOptions = {}):
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    // Logged by the FTO app next to the tool name.
+    "x-tool-source": "cli",
     ...buildAuthHeaders(),
   };
 

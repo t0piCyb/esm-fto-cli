@@ -16,6 +16,7 @@ import { alughaResource, translateCommand, voiceResource } from "./resources/pip
 import { srtResource } from "./resources/srt.js";
 import { subtitlesResource } from "./resources/subtitles.js";
 import { driveResource, syncResource } from "./resources/sync.js";
+import { toolsResource } from "./resources/tools.js";
 import { videosResource } from "./resources/videos.js";
 
 // `esm-fto-cli subtitles get ... | head` closes stdout early: exit quietly.
@@ -78,6 +79,7 @@ program.addCommand(srtResource);
 program.addCommand(languagesResource);
 program.addCommand(promptsResource);
 program.addCommand(usersResource);
+program.addCommand(toolsResource);
 program.addCommand(apiCommand);
 
 program.parse();
