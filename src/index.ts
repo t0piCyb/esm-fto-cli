@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { selfUpdateCommand } from "./commands/self-update.js";
 import { authCommand } from "./commands/auth.js";
-import { globalFlags } from "./lib/config.js";
+import { APP_VERSION, globalFlags } from "./lib/config.js";
 import { notifyUpdate } from "./lib/update.js";
 import { defaultProfile } from "./lib/profiles.js";
 import {
@@ -34,7 +34,7 @@ program
   .description(
     "FTO (ESM Operation Platform) CLI: videos, translations, subtitles, voice-over, Alugha.\nGoes through the ESM web app API (/api/v1), authenticated with your API key.",
   )
-  .version("0.1.0")
+  .version(APP_VERSION)
   .option("-p, --profile <name>", "Profile: prod, dev, local... (default: ESM_FTO_PROFILE, then the active profile)")
   .option("--env <name>", "Alias of --profile")
   .option("--json", "Output as JSON", false)

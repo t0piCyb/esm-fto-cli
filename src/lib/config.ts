@@ -1,11 +1,19 @@
 import { homedir } from "os";
 import { join } from "path";
+import pkg from "../../package.json";
 
 /** Application name */
 export const APP_NAME = "esm-fto";
 
 /** CLI binary name */
 export const APP_CLI = "esm-fto-cli";
+
+/**
+ * Sent as `x-cli-version: esm-fto-cli/<version>`: the FTO app answers 426
+ * below its minimum (frontend/src/features/api-v1/cli-version.ts). Bump it in
+ * package.json with every breaking API change.
+ */
+export const APP_VERSION = pkg.version;
 
 /** API path on the FTO (ESM) Next.js app (never the FastAPI backend directly). */
 export const API_PATH = "/api/v1";
