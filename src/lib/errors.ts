@@ -46,6 +46,7 @@ export const SUGGESTIONS: Record<number, string> = {
   401: "Check your token: esm-fto-cli auth test",
   403: "Not allowed for your role or language assignment (see: esm-fto-cli whoami).",
   404: "Not found. Check the video code (q1.c2.s3) or language (fr).",
+  426: "This CLI is too old for the API. Update it: esm-fto-cli self-update",
   429: "Rate limited. Wait a moment and try again.",
   500: "Server error. Try again later.",
 };

@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import { selfUpdateCommand } from "./commands/self-update.js";
 import { authCommand } from "./commands/auth.js";
 import { globalFlags } from "./lib/config.js";
+import { notifyUpdate } from "./lib/update.js";
 import { defaultProfile } from "./lib/profiles.js";
 import {
   apiCommand,
@@ -62,6 +64,7 @@ Quick start:
     globalFlags.noColor = root.color === false;
     globalFlags.noHeader = root.header === false;
     globalFlags.profile = root.profile ?? root.env ?? defaultProfile();
+    if (actionCmd.name() !== "self-update") notifyUpdate();
   });
 
 program.addCommand(authCommand);
@@ -81,5 +84,6 @@ program.addCommand(promptsResource);
 program.addCommand(usersResource);
 program.addCommand(toolsResource);
 program.addCommand(apiCommand);
+program.addCommand(selfUpdateCommand);
 
 program.parse();

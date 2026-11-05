@@ -189,3 +189,11 @@ esm-fto-cli videos status q5.c1.s1 TRANSCRIBED
 `{ "ok": false, "error": { "code": 403, "message": "...", "suggestion": "..." } }`.
 `subtitles get`, `videos source` and `srt *` print raw SRT (pipeable) unless `--json`.
 Exit codes: 0 success, 1 API error, 2 usage error.
+
+## Updates
+
+Once a day esm-fto-cli checks GitHub for a newer version. When a command prints
+**Update available** on stderr (or `meta.update` in `--json` output), or an
+error says the CLI is too old: tell the user, run `esm-fto-cli self-update`, re-read
+this skill (it is updated with the CLI), then run the command again.
+`esm-fto-cli self-update --check` checks right away.
