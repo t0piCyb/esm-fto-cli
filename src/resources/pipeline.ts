@@ -11,10 +11,34 @@ const langPath = (video: string, lang: string) => `/videos/${seg(video)}/languag
 
 type UploadMode = "subtitles" | "audio" | "complete";
 
-async function uploadToAlugha(video: string, lang: string, mode: UploadMode) {
-  const result = await client.post<{ message: string }>(`${langPath(video, lang)}/alugha`, { mode });
-  log.success(`[${video} ${lang}] Alugha ${mode}: ${result.message}`);
-  return result;
+type UploadResult = {
+  message: string;
+  /** ALUGHA_UPLOAD job: completes when Alugha confirms the upload */
+  job?: { id: string } | null;
+};
+
+/** Alugha answers within minutes; the app gives up after 30 */
+const ALUGHA_CONFIRM_TIMEOUT_MS = 35 * 60 * 1000;
+
+/**
+ * Upload, then (confirm=true) wait until Alugha has processed it: subtitles
+ * published, voice-over encoded. Returns the confirmed job when it waited.
+ */
+async function uploadToAlugha(
+  video: string,
+  lang: string,
+  body: { mode: UploadMode | "srt"; content?: string },
+  { confirm }: { confirm: boolean },
+): Promise<UploadResult & { confirmed?: Job }> {
+  const result = await client.post<UploadResult>(`${langPath(video, lang)}/alugha`, body);
+  log.success(`[${video} ${lang}] Alugha ${body.mode}: ${result.message}`);
+  if (!result.job) return result;
+  if (!confirm) {
+    log.info(`[${video} ${lang}] Alugha confirmation job ${result.job.id} (follow: esm-fto-cli jobs wait ${result.job.id})`);
+    return result;
+  }
+  const confirmed = await waitForJob(result.job.id, ALUGHA_CONFIRM_TIMEOUT_MS);
+  return { ...result, confirmed };
 }
 
 async function generateVoice(
@@ -28,9 +52,7 @@ async function generateVoice(
   });
   log.info(`[${video} ${lang}] voice-over job ${job.id} started`);
   if (!opts.wait) return job;
-  const done = await waitForJob(job.id);
-  log.success(`[${video} ${lang}] voice-over ready: ${done.outputPath ?? ""}`);
-  return done;
+  return waitForJob(job.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -45,13 +67,19 @@ export const translateCommand = new Command("translate")
   .option("--no-save", "With --wait: do not save the SRT to Drive")
   .option("--force", "With --wait: save even if the language was already reviewed (overwrites the SRT)")
   .option("--voice", "With --wait: then generate the voice-over")
-  .option("--upload <mode>", "With --wait: then publish on Alugha: subtitles | complete (subtitles + voice-over)")
+  .option(
+    "--upload <mode>",
+    "With --wait: then publish on Alugha: subtitles | complete (subtitles + voice-over), and wait until Alugha confirms it",
+  )
+  .option("--no-confirm", "With --upload: do not wait for Alugha to confirm the upload")
   .option("--model <model>", "OpenAI model", "gpt-5.2")
   .option("--prompt-file <path>", "Prompt overriding the video/default prompt")
   .addHelpText(
     "after",
     `
 Without --wait it starts the jobs and prints their ids (follow with: esm-fto-cli jobs wait <id>).
+With --wait it prints a progress bar per language, then each step: SRT saved to Drive,
+voice-over ready, uploaded to Alugha, confirmed by Alugha (subtitles / voice-over added).
 
 Examples:
   esm-fto-cli translate q1.c2.s3 fr --wait
@@ -90,7 +118,10 @@ Examples:
 
       const results = await Promise.allSettled(
         started.map(async ({ lang, jobId }) => {
-          await waitForJob(jobId);
+          const translated = await waitForJob(jobId);
+          if (translated.translationSuccess === false) {
+            throw new CliError(1, `Translation ${jobId} has misaligned subtitles: run it again`);
+          }
           const steps: Record<string, unknown> = { lang, jobId, translated: true };
 
           if (opts.save) {
@@ -105,8 +136,21 @@ Examples:
             steps.voice = "outputPath" in voiceJob ? voiceJob.outputPath : voiceJob.id;
           }
           if (opts.upload) {
-            await uploadToAlugha(video, lang, opts.upload as UploadMode);
+            const uploaded = await uploadToAlugha(
+              video,
+              lang,
+              { mode: opts.upload as UploadMode },
+              { confirm: opts.confirm },
+            );
             steps.alugha = opts.upload;
+            if (uploaded.confirmed) {
+              steps.alughaConfirmed = {
+                subtitlesAddedAt: uploaded.confirmed.subtitlesAddedAt ?? null,
+                voiceOverAddedAt: uploaded.confirmed.voiceOverAddedAt ?? null,
+              };
+            } else if (uploaded.job) {
+              steps.alughaJob = uploaded.job.id;
+            }
           }
           return steps;
         }),
@@ -151,18 +195,28 @@ voiceResource
   .option("--gain <db>", "Gain applied to the original audio under the voice", "-17")
   .option("--test", "Short sample only")
   .option("--wait", "Wait until the audio is ready")
-  .option("--upload", "With --wait: publish subtitles + voice-over on Alugha (status COMPLETED)")
+  .option(
+    "--upload",
+    "With --wait: publish subtitles + voice-over on Alugha (status COMPLETED) and wait until Alugha confirms it",
+  )
+  .option("--no-confirm", "With --upload: do not wait for Alugha to confirm the upload")
   .addHelpText("after", "\nExample:\n  esm-fto-cli voice generate q1.c2.s3 fr --wait --upload")
-  .action(async (video: string, lang: string, opts: { gain: string; test?: boolean; wait?: boolean; upload?: boolean }) => {
+  .action(
+    async (
+      video: string,
+      lang: string,
+      opts: { gain: string; test?: boolean; wait?: boolean; upload?: boolean; confirm: boolean },
+    ) => {
     try {
       if (opts.upload && !opts.wait) throw new CliError(2, "--upload needs --wait");
       const job = await generateVoice(video, lang, opts);
-      if (opts.upload) await uploadToAlugha(video, lang, "complete");
+      if (opts.upload) await uploadToAlugha(video, lang, { mode: "complete" }, { confirm: opts.confirm });
       if (globalFlags.json || !opts.wait) output(job);
     } catch (err) {
       handleError(err);
     }
-  });
+    },
+  );
 
 voiceResource
   .command("reduck")
@@ -194,22 +248,24 @@ alughaResource
   .argument("<lang>", "Language code")
   .option("--mode <mode>", "subtitles | audio | complete (subtitles + audio, status COMPLETED)", "subtitles")
   .option("-f, --file <path>", "Upload this SRT directly instead of the Drive file")
+  .option("--wait", "Wait until Alugha confirms the subtitles / voice-over are added (progress bar)")
   .addHelpText(
     "after",
-    "\nExamples:\n  esm-fto-cli alugha upload q1.c2.s3 fr\n  esm-fto-cli alugha upload q1.c2.s3 fr --mode complete\n  esm-fto-cli alugha upload q1.c2.s3 fr --file final_fr.srt",
+    "\nExamples:\n  esm-fto-cli alugha upload q1.c2.s3 fr --wait\n  esm-fto-cli alugha upload q1.c2.s3 fr --mode complete --wait\n  esm-fto-cli alugha upload q1.c2.s3 fr --file final_fr.srt",
   )
-  .action(async (video: string, lang: string, opts: { mode: string; file?: string }) => {
+  .action(async (video: string, lang: string, opts: { mode: string; file?: string; wait?: boolean }) => {
     try {
       if (opts.file) {
         const content = await readInput(opts.file);
-        const result = await client.post<{ message: string }>(`${langPath(video, lang)}/alugha`, { mode: "srt", content });
-        log.success(`[${video} ${lang}] Alugha SRT: ${result.message}`);
+        const result = await uploadToAlugha(video, lang, { mode: "srt", content }, { confirm: Boolean(opts.wait) });
+        if (globalFlags.json) output(result);
         return;
       }
       if (!["subtitles", "audio", "complete"].includes(opts.mode)) {
         throw new CliError(2, `Unknown mode "${opts.mode}"`, "Use subtitles, audio or complete");
       }
-      await uploadToAlugha(video, lang, opts.mode as UploadMode);
+      const result = await uploadToAlugha(video, lang, { mode: opts.mode as UploadMode }, { confirm: Boolean(opts.wait) });
+      if (globalFlags.json) output(result);
     } catch (err) {
       handleError(err);
     }

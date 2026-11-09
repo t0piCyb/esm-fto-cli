@@ -105,18 +105,24 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 ### Pipeline
 | Command | Description |
 |---|---|
-| `esm-fto-cli translate <video> <langs...> [--wait] [--no-save] [--force] [--voice] [--upload subtitles\|complete] [--model M] [--prompt-file F]` | AI translation; with `--wait` saves the SRT (TRANSLATING), optionally voice-over and Alugha |
+| `esm-fto-cli translate <video> <langs...> [--wait] [--no-save] [--force] [--voice] [--upload subtitles\|complete] [--no-confirm] [--model M] [--prompt-file F]` | AI translation; with `--wait` shows a progress bar, saves the SRT (TRANSLATING), optionally voice-over and Alugha, then waits for Alugha to confirm (`--no-confirm` skips that wait) |
 | `esm-fto-cli voice status <video> <lang>` | Subtitles / voice track / final audio present in Drive |
-| `esm-fto-cli voice generate <video> <lang> [--gain -17] [--test] [--wait] [--upload]` | ElevenLabs voice-over; `--upload` publishes subtitles + audio (COMPLETED) |
+| `esm-fto-cli voice generate <video> <lang> [--gain -17] [--test] [--wait] [--upload] [--no-confirm]` | ElevenLabs voice-over; `--upload` publishes subtitles + audio (COMPLETED) and waits for Alugha's confirmation |
 | `esm-fto-cli voice reduck <video> <lang> --gain DB` | Remix voice over original audio with a new gain |
-| `esm-fto-cli alugha upload <video> <lang> [--mode subtitles\|audio\|complete] [-f file.srt]` | Publish on Alugha (`-f`: direct SRT, staff/admin) |
+| `esm-fto-cli alugha upload <video> <lang> [--mode subtitles\|audio\|complete] [-f file.srt] [--wait]` | Publish on Alugha (`-f`: direct SRT, staff/admin); `--wait` blocks until Alugha confirms the subtitles / voice-over are added |
 
-### Jobs (translation, voice-over)
+### Jobs (translation, voice-over, Alugha confirmation)
+Every job has `progress` (0-100) and `currentStep`. An upload to Alugha starts
+an `ALUGHA_UPLOAD` job: Alugha has no webhook, so the app reads the video on
+Alugha until the new subtitles are published and the voice-over is processed.
+`completed` = Alugha confirmed (`subtitlesAddedAt`, `voiceOverAddedAt`);
+`failed` = Alugha reported an error or did not confirm within 30 min.
+
 | Command | Description |
 |---|---|
 | `esm-fto-cli jobs list [--active] [--video CODE]` | Your jobs |
 | `esm-fto-cli jobs get <id> [--content]` | Refresh and show; `--content` prints the raw tagged translation |
-| `esm-fto-cli jobs wait <id>` | Block until done (exit 1 on failure) |
+| `esm-fto-cli jobs wait <id>` | Block until done with a progress bar line per change (exit 1 on failure) |
 | `esm-fto-cli jobs save <id> [--force]` | Completed translation -> SRT in Drive (TRANSLATING) |
 | `esm-fto-cli jobs cancel <id>` | Cancel a voice-over job |
 
@@ -175,8 +181,11 @@ esm-fto-cli subtitles get q1.c2.s3 de -o de.srt
 esm-fto-cli subtitles put q1.c2.s3 de -f de.srt        # -> TRANSLATED
 esm-fto-cli lang validate q1.c2.s3 de
 
-# Voice-over and publish
+# Voice-over and publish, until Alugha confirms both are added
 esm-fto-cli voice generate q1.c2.s3 de --wait --upload  # -> COMPLETED
+
+# Publish subtitles only and wait for Alugha's confirmation
+esm-fto-cli alugha upload q1.c2.s3 de --wait
 
 # Add a new video found in Drive
 esm-fto-cli sync start --wait

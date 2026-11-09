@@ -8,7 +8,7 @@ import { log } from "../lib/logger.js";
 import { output } from "../lib/output.js";
 
 export const jobsResource = new Command("jobs").description(
-  "Background jobs you started (translation, voice-over)",
+  "Background jobs you started (translation, voice-over, Alugha upload confirmation)",
 );
 
 const jobRow = (job: Job) => ({
@@ -63,12 +63,13 @@ jobsResource
 
 jobsResource
   .command("wait")
-  .description("Wait until a job completes (exit code 1 if it fails)")
+  .description(
+    "Wait until a job completes, with a progress bar (exit code 1 if it fails). An alugha job completes when Alugha confirms the subtitles / voice-over are added",
+  )
   .argument("<id>", "Job id")
   .action(async (id: string) => {
     try {
       const job = await waitForJob(id);
-      log.success(`Job ${job.id} completed`);
       if (globalFlags.json) output(job);
     } catch (err) {
       handleError(err);
