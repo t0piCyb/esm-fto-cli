@@ -52,7 +52,7 @@ const acceptsOnlyStrings = (schema: JsonSchema | undefined): boolean => {
 /**
  * `key=value` → input field. Values are read as JSON (numbers, booleans,
  * null, objects) unless the schema says the field is a string, so
- * `ref=q1.c2.s3` and `year=2026` stay text where the tool expects text.
+ * `ref=q1.c2.s3` and `title=2026` stay text where the tool expects text.
  */
 export const parseAssignments = (pairs: string[], schema: JsonSchema): Record<string, unknown> => {
   const input: Record<string, unknown> = {};

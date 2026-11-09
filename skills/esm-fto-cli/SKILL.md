@@ -71,10 +71,12 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 ### Videos
 | Command | Description |
 |---|---|
-| `esm-fto-cli videos list [--search T] [--quarter N] [--class N] [--status S] [--lang fr --lang-status S] [--archived false\|true\|all] [--limit N]` | List videos with per-language statuses |
+| `esm-fto-cli videos list [--search T] [--school-year Y1\|Y2\|Y3\|Other] [--quarter N] [--class N] [--status S] [--lang fr --lang-status S] [--archived false\|true\|all] [--limit N]` | List videos with school year and per-language statuses |
 | `esm-fto-cli videos get <video>` | Video details + target languages |
-| `esm-fto-cli videos add <code> --alugha-id ID [--title T] [--speaker S] [--year Y] [--video-url U]` | Add a video from its synced Drive session (staff/admin) |
-| `esm-fto-cli videos update <video> [--title T] [--speaker S] [--year Y] [--name N] [--alugha-id ID] [--video-url U] [--prompt T \| --prompt-file F]` | Edit metadata; `""` clears a field (staff/admin) |
+| `esm-fto-cli videos add <code> --alugha-id ID [--title T] [--speaker S] [--video-url U]` | Add a video from its synced Drive session (staff/admin); school year from the quarter |
+| `esm-fto-cli videos update <video> [--school-year Y1\|Y2\|Y3\|Other] [--title T] [--speaker S] [--name N] [--alugha-id ID] [--video-url U] [--prompt T \| --prompt-file F]` | Edit metadata; `""` clears a text field (staff/admin) |
+
+**School year** (`schoolYear`, "School year" on the video edit page): Y1, Y2, Y3 or Other, stored as 1, 2, 3, 9 in the API. A new video gets it from its quarter (Q1-Q4 = Y1, Q5-Q8 = Y2, Q9+ = Y3); set Other for a video outside the three years. There is no recording-year field anymore: the old free-text `year` ("2020-2021") is no longer in the API.
 | `esm-fto-cli videos status <video> TRANSCRIBING\|TRANSCRIBED\|AUTO` | Force status, or give it back to Drive sync (staff/admin) |
 | `esm-fto-cli videos archive\|unarchive <video>` | Archive (staff/admin) |
 | `esm-fto-cli videos sync <video>` | Rescan this video's Drive folder (staff/admin) |

@@ -6,6 +6,7 @@ import { CliError, handleError } from "../lib/errors.js";
 import { readInput, writeOutput } from "../lib/io.js";
 import { log } from "../lib/logger.js";
 import { output } from "../lib/output.js";
+import { formatSchoolYear, parseSchoolYear } from "../lib/school-year.js";
 import { targetLanguageRow, videoRow, type Video } from "../lib/types.js";
 
 export const videosResource = new Command("videos").description(
@@ -23,7 +24,7 @@ export function printVideo(video: Video): void {
     code: rest.code,
     title: rest.title,
     speaker: rest.speaker,
-    year: rest.year,
+    schoolYear: formatSchoolYear(rest.schoolYear),
     status: `${rest.status}${rest.statusManuallySet ? " (forced)" : ""}`,
     archived: rest.archived,
     alughaId: rest.alughaId,
@@ -40,6 +41,7 @@ videosResource
   .command("list")
   .description("List videos")
   .option("--search <text>", "Search code, name, title, speaker or Alugha id")
+  .option("--school-year <year>", "Y1 | Y2 | Y3 | Other")
   .option("--quarter <n>", "Quarter number")
   .option("--class <n>", "Class number")
   .option("--status <status>", "TRANSCRIBING | TRANSCRIBED")
@@ -49,12 +51,13 @@ videosResource
   .option("--limit <n>", "Max results", "100")
   .addHelpText(
     "after",
-    "\nExamples:\n  esm-fto-cli videos list --quarter 1\n  esm-fto-cli videos list --lang fr --lang-status TRANSLATING\n  esm-fto-cli videos list --search \"Three Leavens\" --json",
+    "\nExamples:\n  esm-fto-cli videos list --quarter 1\n  esm-fto-cli videos list --school-year Y2\n  esm-fto-cli videos list --lang fr --lang-status TRANSLATING\n  esm-fto-cli videos list --search \"Three Leavens\" --json",
   )
   .action(async (opts) => {
     try {
       const { data, total } = await client.get<{ data: Video[]; total: number }>("/videos", {
         search: opts.search,
+        schoolYear: opts.schoolYear ? String(parseSchoolYear(opts.schoolYear)) : undefined,
         quarter: opts.quarter,
         classNumber: opts.class,
         status: opts.status?.toUpperCase(),
@@ -91,11 +94,10 @@ videosResource
   .requiredOption("--alugha-id <id>", "Alugha video id")
   .option("--title <title>", "Title")
   .option("--speaker <name>", "Speaker")
-  .option("--year <year>", "Year, e.g. 2021-2022")
   .option("--video-url <url>", "Direct video URL for the web player")
   .addHelpText(
     "after",
-    "\nTarget languages and Drive paths are copied from the Drive session (run `esm-fto-cli sync start --wait` first if needed).\n\nExample:\n  esm-fto-cli videos add q1.c2.s3 --alugha-id 6a1b... --title \"The Three Leavens\"",
+    "\nTarget languages and Drive paths are copied from the Drive session (run `esm-fto-cli sync start --wait` first if needed). The school year comes from the quarter (Q1-Q4 = Y1, Q5-Q8 = Y2, Q9+ = Y3); change it with `videos update --school-year`.\n\nExample:\n  esm-fto-cli videos add q1.c2.s3 --alugha-id 6a1b... --title \"The Three Leavens\"",
   )
   .action(async (code: string, opts) => {
     try {
@@ -104,7 +106,6 @@ videosResource
         alughaId: opts.alughaId,
         title: opts.title,
         speaker: opts.speaker,
-        year: opts.year,
         videoUrl: opts.videoUrl,
       });
       log.success(`Video ${video.code} added`);
@@ -120,7 +121,7 @@ videosResource
   .argument("<video>", "Video code, id or Alugha id")
   .option("--title <title>", "Title (\"\" to clear)")
   .option("--speaker <name>", "Speaker (\"\" to clear)")
-  .option("--year <year>", "Year (\"\" to clear)")
+  .option("--school-year <year>", "Y1 | Y2 | Y3 | Other")
   .option("--name <name>", "Internal name")
   .option("--alugha-id <id>", "Alugha video id")
   .option("--video-url <url>", "Direct video URL (\"\" to clear)")
@@ -128,7 +129,7 @@ videosResource
   .option("--prompt-file <path>", "Custom translation prompt from a file")
   .addHelpText(
     "after",
-    "\nExamples:\n  esm-fto-cli videos update q1.c2.s3 --title \"The Three Leavens\" --speaker \"Fr. Mathias Thelen\"\n  esm-fto-cli videos update q1.c2.s3 --prompt-file prompt.txt",
+    "\nExamples:\n  esm-fto-cli videos update q1.c2.s3 --title \"The Three Leavens\" --speaker \"Fr. Mathias Thelen\"\n  esm-fto-cli videos update q1.c8.s1 --school-year Y2\n  esm-fto-cli videos update q1.c2.s3 --prompt-file prompt.txt",
   )
   .action(async (ref: string, opts) => {
     try {
@@ -138,7 +139,7 @@ videosResource
         Object.entries({
           title: nullable(opts.title),
           speaker: nullable(opts.speaker),
-          year: nullable(opts.year),
+          schoolYear: opts.schoolYear ? parseSchoolYear(opts.schoolYear) : undefined,
           name: opts.name,
           alughaId: opts.alughaId,
           videoUrl: nullable(opts.videoUrl),

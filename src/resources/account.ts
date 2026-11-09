@@ -110,7 +110,7 @@ export const apiCommand = new Command("api")
   .argument("<method>", "GET | POST | PUT | PATCH | DELETE")
   .argument("<path>", "Path under /api/v1, e.g. /videos/q1.c2.s3")
   .option("-d, --data <json>", "JSON body")
-  .addHelpText("after", "\nExample:\n  esm-fto-cli api GET /videos/q1.c2.s3/languages/fr\n  esm-fto-cli api PATCH /videos/q1.c2.s3 -d '{\"year\":\"2021-2022\"}'")
+  .addHelpText("after", "\nExample:\n  esm-fto-cli api GET /videos/q1.c2.s3/languages/fr\n  esm-fto-cli api PATCH /videos/q1.c2.s3 -d '{\"schoolYear\":2}'")
   .action(async (method: string, path: string, opts: { data?: string }) => {
     try {
       let body: Record<string, unknown> | undefined;
