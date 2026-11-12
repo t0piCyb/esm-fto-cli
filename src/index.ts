@@ -19,6 +19,7 @@ import { srtResource } from "./resources/srt.js";
 import { subtitlesResource } from "./resources/subtitles.js";
 import { driveResource, syncResource } from "./resources/sync.js";
 import { toolsResource } from "./resources/tools.js";
+import { translationsResource } from "./resources/translations.js";
 import { videosResource } from "./resources/videos.js";
 
 // `esm-fto-cli subtitles get ... | head` closes stdout early: exit quietly.
@@ -50,7 +51,7 @@ Videos are referenced by code (q1.c2.s3), id or Alugha id; languages by fr, fra 
 Quick start:
   esm-fto-cli auth set esm_xxx --profile prod
   esm-fto-cli videos list --lang fr --lang-status PENDING
-  esm-fto-cli translate q1.c2.s3 fr --wait
+  esm-fto-cli translations start q1.c2 --lang fr es --type subtitles student-handout --wait
   esm-fto-cli subtitles get q1.c2.s3 fr -o fr.srt
   esm-fto-cli subtitles put q1.c2.s3 fr -f fr.srt
   esm-fto-cli lang validate q1.c2.s3 fr
@@ -82,6 +83,7 @@ program.addCommand(srtResource);
 program.addCommand(languagesResource);
 program.addCommand(promptsResource);
 program.addCommand(usersResource);
+program.addCommand(translationsResource);
 program.addCommand(toolsResource);
 program.addCommand(apiCommand);
 program.addCommand(selfUpdateCommand);

@@ -1,6 +1,6 @@
 ---
 name: esm-fto-cli
-description: "Operate Encounter's FTO app (ESM Operation Platform, Alugha video subtitle translation) with esm-fto-cli: list and edit videos, set translation statuses and deadlines, validate translations, download/upload SRT subtitles, run AI translation, voice-over and Alugha uploads, Drive sync, translator language assignments. Use whenever the user talks about FTO/ESM videos (codes like q1.c2.s3), subtitles, translations, voice-over or Alugha publishing through the FTO app."
+description: "Operate Encounter's FTO app (ESM Operation Platform, Alugha video subtitle translation) with esm-fto-cli: list and edit videos, set translation statuses and deadlines, validate translations, download/upload SRT subtitles, run AI translation and the translation engine (batches, reviews, approval, publication of subtitles and course documents: handouts, teacher notes, Facilitator Guides, slides), voice-over and Alugha uploads, Drive sync, translator language assignments. Use whenever the user talks about FTO/ESM videos (codes like q1.c2.s3), subtitles, translations, voice-over or Alugha publishing through the FTO app."
 category: "productivity"
 ---
 
@@ -110,6 +110,41 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 | `esm-fto-cli voice generate <video> <lang> [--gain -17] [--test] [--wait] [--upload] [--no-confirm]` | ElevenLabs voice-over; `--upload` publishes subtitles + audio (COMPLETED) and waits for Alugha's confirmation |
 | `esm-fto-cli voice reduck <video> <lang> --gain DB` | Remix voice over original audio with a new gain |
 | `esm-fto-cli alugha upload <video> <lang> [--mode subtitles\|audio\|complete] [-f file.srt] [--wait]` | Publish on Alugha (`-f`: direct SRT, staff/admin); `--wait` blocks until Alugha confirms the subtitles / voice-over are added |
+
+### Translation engine (Codex, every course resource, staff)
+The engine translates subtitles and course documents (student and
+supplemental handouts, teacher notes, Facilitator Guides, slides, homework,
+Thinkific lessons) in a queue, on the Codex subscription, then translators
+review and staff publish. `translate` above is the older direct OpenAI
+translation of one video's subtitles; the engine is the default way.
+
+Flow: `NOT_STARTED -> QUEUED -> AI_TRANSLATING -> AI_DONE / IN_REVIEW -> APPROVED -> PUBLISHED`
+(`FAILED`: retry; `OUTDATED`: the English source changed). Sessions are
+`q1.c2.s3`, `q1.c2` (class) or `q1` (quarter); types are `subtitles`,
+`student-handout`, `supplemental-handout`, `teacher-notes`,
+`facilitator-guide`, `slides`, `homework`, `thinkific-lesson` or `all`.
+`tr` is an alias of `translations`.
+
+| Command | Description |
+|---|---|
+| `esm-fto-cli translations overview [--quarter N] [--lang fr] [--type T] [--status S] [--assignee E\|none] [--overdue] [--outdated] [--session q1.c2]` | Every resource x language with its status (the dashboard) |
+| `esm-fto-cli translations discover <q1\|q1.c2\|q1.c2.s1>` | Register the course documents from the curriculum Drive (read only, safe to rerun); existing `[XX]` translations are linked as APPROVED |
+| `esm-fto-cli translations preview <sessions...> --lang fr es [--type T...] [--force]` | Dry run: what would be queued, skipped (why) and missing |
+| `esm-fto-cli translations start <sessions...> --lang fr es [--type T...] [--urgent] [--refilm] [--force] [--deadline D] [--label L] [--dry-run] [--wait]` | Queue the batch; `--wait` follows it until translated (exit 1 if one failed) |
+| `esm-fto-cli translations batch <id>` / `wait <id>` | A batch's translations, queue positions / wait for it |
+| `esm-fto-cli translations reviews [--all] [--lang fr]` | Drafts waiting for review, with their link |
+| `esm-fto-cli translations approve <id>` | Translator validation -> APPROVED (+ translation memory) |
+| `esm-fto-cli translations publish <id> --yes` | Staff: subtitles go to Alugha (viewers see them), other types are only marked published |
+| `esm-fto-cli translations retry <id> [--urgent]` | FAILED / OUTDATED -> queued again |
+| `esm-fto-cli translations assign <id> <email\|none>` | Give the review to one person / back to every translator of the language |
+| `esm-fto-cli translations register <type> <session> [--drive-file ID] [--tab English] [--thinkific-lesson ID]` | Register one document by hand |
+| `esm-fto-cli translations engine` | Subscription lane, queue, running job, last 7 days |
+
+Sessions come before the options (`--lang` and `--type` take several values).
+Rules: always `preview` (or `start --dry-run`) and show the user the totals
+before `start` on more than one session; `--force` replaces a translator's
+reviewed work, `--urgent` may spend the OpenAI API key, `publish` is public:
+ask first for each. Tests only on `q99` (`q99.c99.s99`, test curriculum).
 
 ### Jobs (translation, voice-over, Alugha confirmation)
 Every job has `progress` (0-100) and `currentStep`. An upload to Alugha starts

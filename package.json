@@ -1,6 +1,6 @@
 {
   "name": "esm-fto-cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "CLI for the esm API",
   "type": "module",
   "bin": {
