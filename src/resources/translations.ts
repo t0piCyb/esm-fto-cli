@@ -101,6 +101,26 @@ type Discovery = {
   warnings: string[];
 };
 
+type EngineStatus = {
+  lane: { state: string; quotaResetAt: string | null; lastError: string | null };
+  queue: { queued: number; translating: number; failed: number };
+  running: {
+    session: string;
+    type: string;
+    language: string;
+    job: { progress: number; currentStep: string | null } | null;
+  } | null;
+  last7Days: {
+    completed: number;
+    completedOnSubscription: number;
+    completedOnApiKey: number;
+    fallbacks: number;
+    quotaWaits: number;
+    failed: number;
+    apiSpendUsd: number | null;
+  };
+};
+
 const run = <T>(tool: string, input: Record<string, unknown> = {}) => client.post<T>(`/tools/${seg(tool)}`, input);
 
 /** `student-handout`, `handouts`... -> STUDENT_HANDOUT; `all` -> every type. */
@@ -482,7 +502,21 @@ translationsResource
   .description("Engine state: Codex subscription, queue, running job, last 7 days")
   .action(async () => {
     try {
-      output(await run<unknown>("engine_status"));
+      const status = await run<EngineStatus>("engine_status");
+      if (globalFlags.json) return output(status);
+      const { lane, queue, running, last7Days: week } = status;
+      output({
+        subscription: lane.state + (lane.quotaResetAt ? ` until ${lane.quotaResetAt}` : ""),
+        lastError: lane.lastError ?? "",
+        queued: queue.queued,
+        translating: queue.translating,
+        failed: queue.failed,
+        running: running
+          ? `${running.session} ${typeLabel(running.type)} ${running.language} ${running.job?.progress ?? 0}% ${running.job?.currentStep ?? ""}`.trim()
+          : "-",
+        "last 7 days": `${week.completed} done (${week.completedOnSubscription} subscription, ${week.completedOnApiKey} API key), ${week.fallbacks} fallbacks, ${week.quotaWaits} quota waits, ${week.failed} failed`,
+        "API spend": week.apiSpendUsd === null ? "unknown" : `$${week.apiSpendUsd.toFixed(2)}`,
+      });
     } catch (err) {
       handleError(err);
     }
