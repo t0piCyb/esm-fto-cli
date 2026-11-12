@@ -436,6 +436,31 @@ translationsResource
   });
 
 translationsResource
+  .command("cancel")
+  .description(
+    "Stop a queued or translating translation, or what is left of a batch (--batch). It goes back to its status before the queue",
+  )
+  .argument("[id]", "Translation id (from overview or batch)")
+  .option("--batch <id>", "Cancel every queued or running translation of this batch")
+  .action(async (id: string | undefined, opts: { batch?: string }) => {
+    try {
+      if (!id === !opts.batch) throw new CliError(2, "Give a translation id or --batch <id>");
+      const result = await run<{
+        cancelled: { id: string; session: string; type: string; language: string; was: Status; status: Status }[];
+        warnings: string[];
+      }>("cancel_translation", id ? { id } : { batch: opts.batch });
+      if (globalFlags.json) return output(result);
+      for (const t of result.cancelled) {
+        log.success(`${t.session} ${typeLabel(t.type)} ${t.language}: ${t.was} -> ${t.status}`);
+      }
+      if (!result.cancelled.length) log.info("Nothing left to cancel in this batch");
+      for (const w of result.warnings) log.warn(w);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+translationsResource
   .command("assign")
   .description("Give the review to one translator, or back to every translator of the language (none)")
   .argument("<id>", "Translation id")

@@ -136,6 +136,7 @@ Flow: `NOT_STARTED -> QUEUED -> AI_TRANSLATING -> AI_DONE / IN_REVIEW -> APPROVE
 | `esm-fto-cli translations approve <id>` | Translator validation -> APPROVED (+ translation memory) |
 | `esm-fto-cli translations publish <id> --yes` | Staff: subtitles go to Alugha (viewers see them), other types are only marked published |
 | `esm-fto-cli translations retry <id> [--urgent]` | FAILED / OUTDATED -> queued again |
+| `esm-fto-cli translations cancel <id>` / `cancel --batch <id>` | Stop a queued or translating translation (or what is left of a batch): the engine stops within seconds, delivers nothing; back to its status before the queue |
 | `esm-fto-cli translations assign <id> <email\|none>` | Give the review to one person / back to every translator of the language |
 | `esm-fto-cli translations register <type> <session> [--drive-file ID] [--tab English] [--thinkific-lesson ID]` | Register one document by hand |
 | `esm-fto-cli translations engine` | Subscription lane, queue, running job, last 7 days |
