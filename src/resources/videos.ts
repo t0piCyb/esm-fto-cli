@@ -13,6 +13,9 @@ export const videosResource = new Command("videos").description(
   "Videos: list, inspect, add from Drive, edit metadata, status, archive",
 );
 
+// The Video Name of the app is the only field holding a video's title and speaker
+const NAME_EXAMPLE = 'e.g. "Q1.C2.S3 - The Three Leavens [Fr. Mathias Thelen: 2021-2022]"';
+
 /** Print a video: full JSON with --json, readable summary otherwise. */
 export function printVideo(video: Video): void {
   if (globalFlags.json || globalFlags.format !== "text") {
@@ -22,8 +25,7 @@ export function printVideo(video: Video): void {
   const { targetLanguages, ...rest } = video;
   output({
     code: rest.code,
-    title: rest.title,
-    speaker: rest.speaker,
+    name: rest.name,
     schoolYear: formatSchoolYear(rest.schoolYear),
     status: `${rest.status}${rest.statusManuallySet ? " (forced)" : ""}`,
     archived: rest.archived,
@@ -40,7 +42,7 @@ export function printVideo(video: Video): void {
 videosResource
   .command("list")
   .description("List videos")
-  .option("--search <text>", "Search code, name, title, speaker or Alugha id")
+  .option("--search <text>", "Search code, video name (title, speaker) or Alugha id")
   .option("--school-year <year>", "Y1 | Y2 | Y3 | Other")
   .option("--quarter <n>", "Quarter number")
   .option("--class <n>", "Class number")
@@ -92,20 +94,18 @@ videosResource
   .description("Add a video from its synced Drive session and link it to Alugha (staff/admin)")
   .argument("<code>", "Video code, e.g. q1.c2.s3")
   .requiredOption("--alugha-id <id>", "Alugha video id")
-  .option("--title <title>", "Title")
-  .option("--speaker <name>", "Speaker")
+  .option("--name <name>", `Video name shown in the app (default: the code), ${NAME_EXAMPLE}`)
   .option("--video-url <url>", "Direct video URL for the web player")
   .addHelpText(
     "after",
-    "\nTarget languages and Drive paths are copied from the Drive session (run `esm-fto-cli sync start --wait` first if needed). The school year comes from the quarter (Q1-Q4 = Y1, Q5-Q8 = Y2, Q9+ = Y3); change it with `videos update --school-year`.\n\nExample:\n  esm-fto-cli videos add q1.c2.s3 --alugha-id 6a1b... --title \"The Three Leavens\"",
+    "\nTarget languages and Drive paths are copied from the Drive session (run `esm-fto-cli sync start --wait` first if needed). The school year comes from the quarter (Q1-Q4 = Y1, Q5-Q8 = Y2, Q9+ = Y3); change it with `videos update --school-year`.\n\nExample:\n  esm-fto-cli videos add q1.c2.s3 --alugha-id 6a1b... --name \"Q1.C2.S3 - The Three Leavens [Fr. Mathias Thelen: 2021-2022]\"",
   )
   .action(async (code: string, opts) => {
     try {
       const { video } = await client.post<{ video: Video }>("/videos", {
         code,
         alughaId: opts.alughaId,
-        title: opts.title,
-        speaker: opts.speaker,
+        name: opts.name,
         videoUrl: opts.videoUrl,
       });
       log.success(`Video ${video.code} added`);
@@ -119,17 +119,15 @@ videosResource
   .command("update")
   .description("Edit video metadata (staff/admin)")
   .argument("<video>", "Video code, id or Alugha id")
-  .option("--title <title>", "Title (\"\" to clear)")
-  .option("--speaker <name>", "Speaker (\"\" to clear)")
+  .option("--name <name>", `Video name shown in the app: the title and speaker are read from it, ${NAME_EXAMPLE}`)
   .option("--school-year <year>", "Y1 | Y2 | Y3 | Other")
-  .option("--name <name>", "Internal name")
   .option("--alugha-id <id>", "Alugha video id")
   .option("--video-url <url>", "Direct video URL (\"\" to clear)")
   .option("--prompt <text>", "Custom translation prompt (\"\" to clear)")
   .option("--prompt-file <path>", "Custom translation prompt from a file")
   .addHelpText(
     "after",
-    "\nExamples:\n  esm-fto-cli videos update q1.c2.s3 --title \"The Three Leavens\" --speaker \"Fr. Mathias Thelen\"\n  esm-fto-cli videos update q1.c8.s1 --school-year Y2\n  esm-fto-cli videos update q1.c2.s3 --prompt-file prompt.txt",
+    "\nExamples:\n  esm-fto-cli videos update q1.c2.s3 --name \"Q1.C2.S3 - The Three Leavens [Fr. Mathias Thelen: 2021-2022]\"\n  esm-fto-cli videos update q1.c8.s1 --school-year Y2\n  esm-fto-cli videos update q1.c2.s3 --prompt-file prompt.txt",
   )
   .action(async (ref: string, opts) => {
     try {
@@ -137,8 +135,6 @@ videosResource
       const prompt = opts.promptFile ? await readInput(opts.promptFile) : opts.prompt;
       const body = Object.fromEntries(
         Object.entries({
-          title: nullable(opts.title),
-          speaker: nullable(opts.speaker),
           schoolYear: opts.schoolYear ? parseSchoolYear(opts.schoolYear) : undefined,
           name: opts.name,
           alughaId: opts.alughaId,
@@ -147,7 +143,7 @@ videosResource
         }).filter(([, value]) => value !== undefined),
       );
       if (Object.keys(body).length === 0) {
-        throw new CliError(2, "Nothing to update", "Pass at least one option, e.g. --title");
+        throw new CliError(2, "Nothing to update", "Pass at least one option, e.g. --name");
       }
       const { video } = await client.patch<{ video: Video }>(`/videos/${seg(ref)}`, body);
       log.success(`Video ${video.code} updated`);

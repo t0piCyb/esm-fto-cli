@@ -16,8 +16,10 @@ export type TargetLanguage = {
 export type Video = {
   id: string;
   code: string;
+  /** Video Name of the app, the only one to edit: "Q1.C2.S3 - Title [Speaker: 2021-2022]" */
   name: string;
   alughaId: string;
+  /** Read-only: read from `name` by the app */
   title: string | null;
   speaker: string | null;
   /** 1 = Y1, 2 = Y2, 3 = Y3, 9 = Other */
@@ -42,7 +44,7 @@ export type Video = {
 export const videoRow = (video: Video) => ({
   code: video.code,
   schoolYear: formatSchoolYear(video.schoolYear),
-  title: video.title ?? video.name,
+  name: video.name,
   status: video.status,
   languages: video.targetLanguages.map((tl) => `${tl.language}:${tl.status}`).join(" "),
   alughaId: video.alughaId,

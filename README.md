@@ -36,7 +36,7 @@ Keys: `~/.config/tokens/esm-fto-cli-<profile>.txt` (chmod 600). State:
 ```bash
 esm-fto-cli --help
 esm-fto-cli videos list --lang fr --lang-status PENDING
-esm-fto-cli videos update q1.c2.s3 --title "The Three Leavens"
+esm-fto-cli videos update q1.c2.s3 --name "Q1.C2.S3 - The Three Leavens [Fr. Mathias Thelen: 2021-2022]"
 esm-fto-cli lang status q1.c2.s3 fr TRANSLATED
 esm-fto-cli translate q1.c2.s3 fr de --wait
 esm-fto-cli subtitles get q1.c2.s3 fr -o fr.srt
