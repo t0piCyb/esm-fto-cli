@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import { buildAuthHeaders, getAppUrl } from "./auth.js";
 import { API_PATH, APP_CLI, APP_VERSION } from "./config.js";
 import { CliError, SUGGESTIONS } from "./errors.js";
@@ -40,10 +41,12 @@ async function request(method: Method, path: string, opts: RequestOptions = {}):
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
-    // Logged by the FTO app next to the tool name.
+    // Recorded by the FTO app's activity log next to the tool name.
     "x-tool-source": "cli",
     // The app refuses (426) a CLI older than its minimum version.
     "x-cli-version": `${APP_CLI}/${APP_VERSION}`,
+    // Activity log: which CLI, from which machine.
+    "x-tool-client": `${APP_CLI}/${APP_VERSION} (${hostname()})`,
     ...buildAuthHeaders(),
   };
 
