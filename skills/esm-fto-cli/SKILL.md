@@ -91,7 +91,8 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 | `esm-fto-cli lang get <video> <lang>` | Status, deadline, validations, SRT path |
 | `esm-fto-cli lang status <video> <lang> <STATUS>` | Set translation status (assigned translators, staff, admin) |
 | `esm-fto-cli lang deadline <video> <lang> <YYYY-MM-DD\|none>` | Deadline (staff/admin) |
-| `esm-fto-cli lang validate\|unvalidate <video> <lang>` | Add/withdraw your validation |
+| `esm-fto-cli lang validate <video> <lang> [--translator E] [--note T]` | Approve the subtitles (alias `approve`): your own review, or staff FOR the translator who did it (sent by e-mail, done in Drive) |
+| `esm-fto-cli lang unvalidate <video> <lang> [--note T]` | Withdraw the approval (alias `revoke`): back to review, history kept |
 | `esm-fto-cli lang add <video> <lang> [--deadline D]` | Add a target language (staff/admin) |
 | `esm-fto-cli lang remove <video> <lang> --yes` | Remove a target language (staff/admin) |
 
@@ -99,7 +100,7 @@ Other names need `--url` once. `ESM_FTO_PROFILE`, `ESM_FTO_API_KEY` and
 | Command | Description |
 |---|---|
 | `esm-fto-cli subtitles get <video> <lang> [-o file]` | Translated SRT currently in Drive |
-| `esm-fto-cli subtitles put <video> <lang> -f file.srt [--stage reviewed\|translation] [--no-line-breaks] [--status S\|keep]` | Save an SRT to Drive; reviewed -> TRANSLATED |
+| `esm-fto-cli subtitles put <video> <lang> -f file.srt [--stage reviewed\|translation] [--no-line-breaks] [--status S\|keep]` | Save an SRT to Drive (reviewed -> TRANSLATED file state). Saving is not approving: approve with `lang validate` |
 | `esm-fto-cli subtitles import <video> <lang> -f tagged.txt [--dry-run] [--force]` | Import `<<1>> text <<2>> text` translation; validates tags, uses source timings, -> TRANSLATING |
 
 `-f -` reads stdin.
@@ -135,7 +136,10 @@ Flow: `NOT_STARTED -> QUEUED -> AI_TRANSLATING -> AI_DONE / IN_REVIEW -> APPROVE
 | `esm-fto-cli translations start <sessions...> --lang fr es [--type T...] [--urgent] [--refilm] [--force] [--deadline D] [--label L] [--dry-run] [--wait]` | Queue the batch; `--wait` follows it until translated (exit 1 if one failed) |
 | `esm-fto-cli translations batch <id>` / `wait <id>` | A batch's translations, queue positions / wait for it |
 | `esm-fto-cli translations reviews [--all] [--lang fr]` | Drafts waiting for review, with their link |
-| `esm-fto-cli translations approve <id>` | Translator validation -> APPROVED (+ translation memory) |
+| `esm-fto-cli translations approve <id> [--translator E] [--note T]` | APPROVED (+ translation memory). Translators approve their own review; staff approve from any status, `--translator` credits who did it (work sent by e-mail, done in Drive; default: you) |
+| `esm-fto-cli translations revoke <id> [--note T]` | Withdraw an approval: back to review, history kept (staff, or the translator credited) |
+| `esm-fto-cli translations credit <id> --translator E [--note T]` | Staff: name who did an approved or published translation (found in Drive, approved before credits) |
+| `esm-fto-cli translations approvals [--translator E] [--by E] [--decision approved\|revoked\|credited] [--lang fr] [--on-behalf\|--own] [--id T] [--since D] [--until D]` | Staff: approval history (who did it, who recorded it, from where) |
 | `esm-fto-cli translations publish <id> --yes` | Staff: subtitles go to Alugha (viewers see them), other types are only marked published |
 | `esm-fto-cli translations retry <id> [--urgent]` | FAILED / OUTDATED -> queued again |
 | `esm-fto-cli translations cancel <id>` / `cancel --batch <id>` | Stop a queued or translating translation (or what is left of a batch): the engine stops within seconds, delivers nothing; back to its status before the queue |
@@ -218,6 +222,14 @@ esm-fto-cli subtitles get q1.c2.s3 de -o de.srt
 #   (edit de.srt)
 esm-fto-cli subtitles put q1.c2.s3 de -f de.srt        # -> TRANSLATED
 esm-fto-cli lang validate q1.c2.s3 de
+
+# A translator sent their French subtitles by e-mail: save them to Drive,
+# then approve FOR them (they get the credit in translator progress)
+esm-fto-cli subtitles put q1.c2.s3 fr -f fr.srt
+esm-fto-cli lang validate q1.c2.s3 fr --translator maria@example.org --note "sent by e-mail"
+
+# Who approved what for whom this month
+esm-fto-cli translations approvals --on-behalf --since 2026-11-01
 
 # Voice-over and publish, until Alugha confirms both are added
 esm-fto-cli voice generate q1.c2.s3 de --wait --upload  # -> COMPLETED

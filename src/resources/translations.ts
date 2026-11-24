@@ -388,19 +388,145 @@ translationsResource
     }
   });
 
+type Person = { id: string; name: string; email: string };
+
+type ApprovalResult = { translation?: Translation; translator?: Person; onBehalf?: boolean };
+
+const translationLabel = (t?: Translation) =>
+  t ? `${t.session} ${typeLabel(t.type)} ${t.language}` : "";
+
 translationsResource
   .command("approve")
-  .description("Approve a reviewed translation (it goes to the translation memory; subtitles become TRANSLATED)")
-  .argument("<id>", "Translation id (from overview, reviews or batch)")
-  .action(async (id: string) => {
+  .description(
+    "Approve a translation (translation memory; subtitles become TRANSLATED). Translators approve their own review; staff approve from any status and, with --translator, FOR the translator who did it (work sent by e-mail, done in Drive)",
+  )
+  .argument("<id>", "Translation id (from overview, reviews, batch or approvals)")
+  .option("--translator <user>", "Staff: credit this translator (e-mail, id or exact name); default you")
+  .option("--note <text>", "Comment kept in the approval history (\"sent by e-mail on 12/11\")")
+  .action(async (id: string, opts: { translator?: string; note?: string }) => {
     try {
-      const result = await run<{ translation?: Translation }>("approve_translation", { id });
+      const result = await run<ApprovalResult>("approve_translation", {
+        id,
+        translator: opts.translator,
+        note: opts.note,
+      });
       if (globalFlags.json) return output(result);
-      log.success(`Approved${result.translation ? `: ${result.translation.session} ${typeLabel(result.translation.type)} ${result.translation.language}` : ""}`);
+      const forWhom = result.onBehalf && result.translator ? ` for ${result.translator.name}` : "";
+      log.success(`Approved${forWhom}: ${translationLabel(result.translation)}`);
     } catch (err) {
       handleError(err);
     }
   });
+
+translationsResource
+  .command("revoke")
+  .description("Withdraw the approval of an APPROVED translation: back to review, the history keeps both (staff, or the translator credited)")
+  .argument("<id>", "Translation id")
+  .option("--note <text>", "Why (kept in the history)")
+  .action(async (id: string, opts: { note?: string }) => {
+    try {
+      const result = await run<{ translation?: Translation }>("revoke_approval", { id, note: opts.note });
+      if (globalFlags.json) return output(result);
+      log.success(`Approval withdrawn: ${translationLabel(result.translation)} is back in review`);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+translationsResource
+  .command("credit")
+  .description("Staff: name who did an approved or published translation (found in Drive, approved before credits, wrong person), without approving again")
+  .argument("<id>", "Translation id")
+  .requiredOption("--translator <user>", "Translator: e-mail, id or exact name")
+  .option("--note <text>", "Comment kept in the history")
+  .action(async (id: string, opts: { translator: string; note?: string }) => {
+    try {
+      const result = await run<ApprovalResult>("credit_translator", {
+        id,
+        translator: opts.translator,
+        note: opts.note,
+      });
+      if (globalFlags.json) return output(result);
+      log.success(`${translationLabel(result.translation)} credited to ${result.translator?.name ?? opts.translator}`);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+type ApprovalRow = {
+  decision: "APPROVED" | "REVOKED" | "CREDITED";
+  at: string;
+  translationId: string;
+  session: string;
+  type: string;
+  language: string;
+  translator: Person | null;
+  decidedBy: Person | null;
+  onBehalf: boolean;
+  note: string | null;
+  source: string | null;
+};
+
+translationsResource
+  .command("approvals")
+  .description("Staff: approval history, newest first (who did the work, who recorded it, for whom, from where)")
+  .option("--translator <user>", "Only the work credited to this translator")
+  .option("--by <user>", "Only what this person recorded")
+  .option("--decision <decision>", "approved | revoked | credited")
+  .option("--lang <code>", "Only this language")
+  .option("--on-behalf", "Only approvals recorded for someone else")
+  .option("--own", "Only translators approving their own work")
+  .option("--id <translation>", "Only this translation")
+  .option("--since <date>", "From this date (ISO)")
+  .option("--until <date>", "Before this date (ISO)")
+  .option("--limit <n>", "At most this many rows (max 500)", "100")
+  .action(
+    async (opts: {
+      translator?: string;
+      by?: string;
+      decision?: string;
+      lang?: string;
+      onBehalf?: boolean;
+      own?: boolean;
+      id?: string;
+      since?: string;
+      until?: string;
+      limit: string;
+    }) => {
+      try {
+        if (opts.onBehalf && opts.own) throw new CliError(2, "--on-behalf and --own exclude each other");
+        const result = await run<{ data: ApprovalRow[]; truncated: boolean }>("list_approvals", {
+          translator: opts.translator,
+          decidedBy: opts.by,
+          decision: opts.decision?.toUpperCase(),
+          language: opts.lang,
+          onBehalf: opts.onBehalf ? "true" : opts.own ? "false" : undefined,
+          translation: opts.id,
+          since: opts.since,
+          until: opts.until,
+          limit: Number(opts.limit),
+        });
+        if (globalFlags.json) return output(result);
+        output(
+          result.data.map((row) => ({
+            date: row.at.slice(0, 10),
+            decision: row.decision.toLowerCase(),
+            session: row.session,
+            type: typeLabel(row.type),
+            lang: row.language,
+            translator: row.translator?.name ?? "-",
+            by: row.onBehalf ? (row.decidedBy?.name ?? "-") : "",
+            from: row.source ?? "",
+            note: row.note ?? "",
+            id: row.translationId,
+          })),
+        );
+        if (result.truncated) log.warn(`Limit reached: narrow the filters or raise --limit`);
+      } catch (err) {
+        handleError(err);
+      }
+    },
+  );
 
 translationsResource
   .command("publish")

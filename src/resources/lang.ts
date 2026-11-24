@@ -70,15 +70,29 @@ langResource
     }
   });
 
+type Person = { id: string; name: string; email: string };
+
 langResource
   .command("validate")
-  .description("Validate the translation in your name (admins, or translators of the language)")
+  .alias("approve")
+  .description(
+    "Approve the subtitles of a video in one language (same as translations approve). Translators approve their own review; staff approve from any status and, with --translator, FOR the translator who did it (sent by e-mail, done in Drive)",
+  )
   .argument("<video>", "Video code, id or Alugha id")
   .argument("<lang>", "Language code")
-  .action(async (video: string, lang: string) => {
+  .option("--translator <user>", "Staff: credit this translator (e-mail, id or exact name); default you")
+  .option("--note <text>", "Comment kept in the approval history")
+  .action(async (video: string, lang: string, opts: { translator?: string; note?: string }) => {
     try {
-      const result = await client.post<{ validatedBy: string }>(`${langPath(video, lang)}/validation`);
-      log.success(`${video} ${lang} validated by ${result.validatedBy}`);
+      const result = await client.post<{ translator: Person; onBehalf: boolean; validatedBy: string }>(
+        `${langPath(video, lang)}/validation`,
+        { translator: opts.translator, note: opts.note },
+      );
+      log.success(
+        result.onBehalf
+          ? `${video} ${lang} approved for ${result.translator.name} by ${result.validatedBy}`
+          : `${video} ${lang} approved by ${result.validatedBy}`,
+      );
     } catch (err) {
       handleError(err);
     }
@@ -86,13 +100,15 @@ langResource
 
 langResource
   .command("unvalidate")
-  .description("Withdraw your validation (status goes back to TRANSLATING if none remain)")
+  .alias("revoke")
+  .description("Withdraw the approval of the subtitles: back to review, language back to TRANSLATING (staff, or the translator credited)")
   .argument("<video>", "Video code, id or Alugha id")
   .argument("<lang>", "Language code")
-  .action(async (video: string, lang: string) => {
+  .option("--note <text>", "Why (kept in the history)")
+  .action(async (video: string, lang: string, opts: { note?: string }) => {
     try {
-      const result = await client.delete<{ statusReverted: boolean }>(`${langPath(video, lang)}/validation`);
-      log.success(`Validation withdrawn${result.statusReverted ? " (status back to TRANSLATING)" : ""}`);
+      await client.post(`/tools/${seg("withdraw_validation")}`, { ref: video, lang, note: opts.note });
+      log.success(`${video} ${lang}: approval withdrawn, back in review`);
     } catch (err) {
       handleError(err);
     }
