@@ -422,7 +422,9 @@ type ApproveManyResult = {
   translator: { name: string; email: string };
   dryRun: boolean;
   approved: number;
+  credited: number;
   wouldApprove: number;
+  wouldCredit: number;
   skipped: number;
   items: { id: string; label: string; status: string | null; result: string; reason?: string }[];
 };
@@ -431,7 +433,7 @@ translationsResource
   .command("approve-many")
   .alias("approve-all")
   .description(
-    "Staff: approve several translations at once for one translator, without opening them: the ids given, or every translation ready for approval (AI draft, in review) of a session and/or language. Each one is approved and recorded like `approve`; the ones refused are listed with the reason",
+    "Staff: say at once that one translator did several translations, without opening them. Waiting for approval (AI draft, in review...) = approved for them like `approve`; already approved or published = credited to them like `credit`. The ids given, or in a session and/or language every AI draft, translation in review, and approved/published one nobody is credited for. The ones refused are listed with the reason",
   )
   .argument("[ids...]", "Translation ids (else use --session / --lang)")
   .option("--session <code>", "Quarter, class or session: q1, q1.c2, q1.c2.s3")
@@ -460,9 +462,11 @@ translationsResource
         });
         if (globalFlags.json) return output(result);
         if (result.items.length === 0) {
-          log.info("Nothing ready for approval there");
+          log.info("Nothing to approve or credit there");
           return;
         }
+        const done = (a: number, c: number) =>
+          [a > 0 ? `${a} approved` : null, c > 0 ? `${c} credited` : null].filter(Boolean).join(", ") || "nothing";
         output(
           result.items.map((item) => ({
             translation: item.label,
@@ -474,11 +478,13 @@ translationsResource
         );
         const who = result.translator.name;
         if (result.dryRun) {
-          log.info(`${result.wouldApprove} would be approved for ${who}, ${result.skipped} refused (dry run, nothing written)`);
+          log.info(
+            `Would be ${done(result.wouldApprove, result.wouldCredit)} for ${who}, ${result.skipped} left as they are (dry run, nothing written)`,
+          );
         } else if (result.skipped > 0) {
-          log.warn(`${result.approved} approved for ${who}, ${result.skipped} not approved`);
+          log.warn(`${done(result.approved, result.credited)} for ${who}, ${result.skipped} left as they were`);
         } else {
-          log.success(`${result.approved} approved for ${who}`);
+          log.success(`${done(result.approved, result.credited)} for ${who}`);
         }
       } catch (err) {
         handleError(err);
