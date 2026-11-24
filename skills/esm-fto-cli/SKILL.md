@@ -138,6 +138,7 @@ Flow: `NOT_STARTED -> QUEUED -> AI_TRANSLATING -> AI_DONE / IN_REVIEW -> APPROVE
 | `esm-fto-cli translations reviews [--all] [--lang fr]` | Drafts waiting for review, with their link |
 | `esm-fto-cli translations approve <id> [--translator E] [--note T]` | APPROVED (+ translation memory). Translators approve their own review; staff approve from any status, `--translator` credits who did it (work sent by e-mail, done in Drive; default: you) |
 | `esm-fto-cli translations revoke <id> [--note T]` | Withdraw an approval: back to review, history kept (staff, or the translator credited) |
+| `esm-fto-cli translations approve-many [ids...] [--session q1.c2] [--lang fr] [--type T] [--translator E] [--note T] [--dry-run]` | Staff: approve several at once for one translator, without opening them: the ids, or everything ready for approval (AI draft, in review) of a session/language. Refused ones are listed with the reason; `--dry-run` first |
 | `esm-fto-cli translations credit <id> --translator E [--note T]` | Staff: name who did an approved or published translation (found in Drive, approved before credits) |
 | `esm-fto-cli translations approvals [--translator E] [--by E] [--decision approved\|revoked\|credited] [--lang fr] [--on-behalf\|--own] [--id T] [--since D] [--until D]` | Staff: approval history (who did it, who recorded it, from where) |
 | `esm-fto-cli translations publish <id> --yes` | Staff: subtitles go to Alugha (viewers see them), other types are only marked published |
@@ -227,6 +228,10 @@ esm-fto-cli lang validate q1.c2.s3 de
 # then approve FOR them (they get the credit in translator progress)
 esm-fto-cli subtitles put q1.c2.s3 fr -f fr.srt
 esm-fto-cli lang validate q1.c2.s3 fr --translator maria@example.org --note "sent by e-mail"
+
+# Maria did all the French of a class: approve it all for her at once
+esm-fto-cli translations approve-many --session q1.c2 --lang fr --translator maria@example.org --dry-run
+esm-fto-cli translations approve-many --session q1.c2 --lang fr --translator maria@example.org --note "sent by e-mail"
 
 # Who approved what for whom this month
 esm-fto-cli translations approvals --on-behalf --since 2026-11-01

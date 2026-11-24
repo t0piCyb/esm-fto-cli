@@ -418,6 +418,74 @@ translationsResource
     }
   });
 
+type ApproveManyResult = {
+  translator: { name: string; email: string };
+  dryRun: boolean;
+  approved: number;
+  wouldApprove: number;
+  skipped: number;
+  items: { id: string; label: string; status: string | null; result: string; reason?: string }[];
+};
+
+translationsResource
+  .command("approve-many")
+  .alias("approve-all")
+  .description(
+    "Staff: approve several translations at once for one translator, without opening them: the ids given, or every translation ready for approval (AI draft, in review) of a session and/or language. Each one is approved and recorded like `approve`; the ones refused are listed with the reason",
+  )
+  .argument("[ids...]", "Translation ids (else use --session / --lang)")
+  .option("--session <code>", "Quarter, class or session: q1, q1.c2, q1.c2.s3")
+  .option("--lang <code>", "Only this language (fr, fra, French)")
+  .option("--type <type>", "Only this type (subtitles, slides, student-handout...)")
+  .option("--translator <user>", "Credit this translator (e-mail, id or exact name); default you")
+  .option("--note <text>", "Comment kept in the approval history of each one")
+  .option("--dry-run", "Only list what would be approved")
+  .action(
+    async (
+      ids: string[],
+      opts: { session?: string; lang?: string; type?: string; translator?: string; note?: string; dryRun?: boolean },
+    ) => {
+      try {
+        if (ids.length === 0 && !opts.session && !opts.lang) {
+          throw new CliError("Pass translation ids, or --session and/or --lang");
+        }
+        const result = await run<ApproveManyResult>("approve_translations", {
+          ids: ids.length > 0 ? ids : undefined,
+          session: opts.session,
+          language: opts.lang,
+          type: opts.type ? parseTypes([opts.type])[0] : undefined,
+          translator: opts.translator,
+          note: opts.note,
+          dryRun: opts.dryRun === true,
+        });
+        if (globalFlags.json) return output(result);
+        if (result.items.length === 0) {
+          log.info("Nothing ready for approval there");
+          return;
+        }
+        output(
+          result.items.map((item) => ({
+            translation: item.label,
+            status: item.status?.toLowerCase().replaceAll("_", " ") ?? "-",
+            result: item.result.replaceAll("_", " "),
+            reason: item.reason ?? "",
+            id: item.id,
+          })),
+        );
+        const who = result.translator.name;
+        if (result.dryRun) {
+          log.info(`${result.wouldApprove} would be approved for ${who}, ${result.skipped} refused (dry run, nothing written)`);
+        } else if (result.skipped > 0) {
+          log.warn(`${result.approved} approved for ${who}, ${result.skipped} not approved`);
+        } else {
+          log.success(`${result.approved} approved for ${who}`);
+        }
+      } catch (err) {
+        handleError(err);
+      }
+    },
+  );
+
 translationsResource
   .command("revoke")
   .description("Withdraw the approval of an APPROVED translation: back to review, the history keeps both (staff, or the translator credited)")
